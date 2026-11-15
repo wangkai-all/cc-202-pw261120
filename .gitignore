@@ -32,3 +32,8 @@ test-results/
 *.sqlite3-shm
 *.sqlite3-journal
 !*.traineddata.gz
+
+# 本地工作台运行数据
+/data/
+/tmp/
+crash-demo-*/

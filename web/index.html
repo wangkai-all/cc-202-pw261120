@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>表结构迁移工作台 · 地址字段结构化</title>
+<style>
+  :root {
+    --bg:#0f1420; --panel:#171e2e; --panel2:#1d2740; --line:#2a3550;
+    --text:#e6ebf5; --muted:#8b97ad; --accent:#4f8cff; --accent2:#22c1a6;
+    --warn:#f0a94b; --danger:#f26077; --ok:#36c98f; --chip:#243150;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.6 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+         background:var(--bg); color:var(--text); }
+  header { padding:18px 28px 12px; border-bottom:1px solid var(--line); display:flex;
+           align-items:baseline; gap:16px; flex-wrap:wrap; }
+  header h1 { font-size:19px; margin:0; }
+  header .sub { color:var(--muted); font-size:12px; }
+  .mode-badge { margin-left:auto; padding:4px 12px; border-radius:999px; background:var(--chip);
+                font-size:12px; border:1px solid var(--line); }
+  nav { display:flex; gap:4px; padding:10px 20px 0; border-bottom:1px solid var(--line);
+        background:var(--panel); position:sticky; top:0; z-index:5; }
+  nav button { background:none; border:none; color:var(--muted); padding:10px 18px; cursor:pointer;
+               font-size:14px; border-bottom:2px solid transparent; }
+  nav button.active { color:var(--text); border-bottom-color:var(--accent); }
+  main { padding:22px 28px 60px; max-width:1280px; margin:0 auto; }
+  .tab { display:none; } .tab.active { display:block; }
+  .grid { display:grid; gap:14px; }
+  .grid.cols4 { grid-template-columns:repeat(4,1fr); }
+  .grid.cols3 { grid-template-columns:repeat(3,1fr); }
+  .grid.cols2 { grid-template-columns:1fr 1fr; }
+  @media (max-width:960px){ .grid.cols4,.grid.cols3,.grid.cols2{grid-template-columns:1fr;} }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .card h3 { margin:0 0 10px; font-size:14px; color:var(--muted); font-weight:600; }
+  .metric { font-size:26px; font-weight:700; }
+  .metric small { font-size:12px; color:var(--muted); font-weight:400; }
+  button.btn { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:8px 16px;
+               cursor:pointer; font-size:13px; }
+  button.btn:hover { filter:brightness(1.1); }
+  button.btn.ghost { background:var(--panel2); border:1px solid var(--line); color:var(--text); }
+  button.btn.danger { background:var(--danger); }
+  button.btn.ok { background:var(--ok); color:#08130d; }
+  button.btn:disabled { opacity:.45; cursor:not-allowed; }
+  input,textarea,select { width:100%; background:var(--panel2); border:1px solid var(--line);
+      color:var(--text); border-radius:8px; padding:8px 10px; font-size:13px; font-family:inherit; }
+  label { font-size:12px; color:var(--muted); display:block; margin:8px 0 4px; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line);
+          vertical-align:top; }
+  th { color:var(--muted); font-weight:600; position:sticky; top:46px; background:var(--panel); }
+  .chip { display:inline-block; padding:2px 9px; border-radius:999px; font-size:11.5px;
+          background:var(--chip); border:1px solid var(--line); white-space:nowrap; }
+  .chip.parsed { color:var(--ok); border-color:#1d5c45; }
+  .chip.partial { color:var(--warn); border-color:#6b4d22; }
+  .chip.pending { color:var(--danger); border-color:#6e2a37; }
+  .chip.manual { color:#9db8ff; border-color:#2c3f73; }
+  .progress { height:10px; background:var(--panel2); border-radius:999px; overflow:hidden;
+              border:1px solid var(--line); }
+  .progress > div { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2));
+                    transition:width .4s; }
+  .log { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; max-height:340px;
+         overflow:auto; background:var(--panel2); border-radius:8px; padding:10px; }
+  .log .row { padding:2px 0; border-bottom:1px dashed var(--line); }
+  .log .ts { color:var(--muted); margin-right:8px; }
+  .muted { color:var(--muted); } .mono { font-family:ui-monospace,Menlo,Consolas,monospace; }
+  .toast { position:fixed; right:24px; bottom:24px; max-width:420px; z-index:50; }
+  .toast .t { margin-top:8px; padding:12px 16px; border-radius:10px; background:var(--panel2);
+              border:1px solid var(--line); box-shadow:0 8px 24px #0008; }
+  .toast .t.err { border-color:var(--danger); } .toast .t.ok { border-color:var(--ok); }
+  .check-pass { color:var(--ok); } .check-warn { color:var(--warn); } .check-fail { color:var(--danger); }
+  .diff-ok { color:var(--ok); } .diff-bad { color:var(--danger); }
+  .kv { display:grid; grid-template-columns:110px 1fr; gap:4px 10px; font-size:12.5px; }
+  .kv .k { color:var(--muted); }
+  pre.box { background:var(--panel2); border:1px solid var(--line); border-radius:8px;
+            padding:10px; font-size:12px; overflow:auto; margin:6px 0; }
+  .row-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .hint { font-size:12px; color:var(--muted); margin:6px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>表结构迁移工作台</h1>
+  <span class="sub">单一地址字段 → 结构化地址 · 双投影并行 · 检查点回填 · 业务版本仲裁</span>
+  <span class="mode-badge">读取开关：<b id="modeBadge">–</b></span>
+</header>
+
+<nav>
+  <button data-tab="overview" class="active">总览与回填</button>
+  <button data-tab="write">在线写入 / 并发修订</button>
+  <button data-tab="data">双投影数据</button>
+  <button data-tab="pending">待处理地址</button>
+  <button data-tab="cutover">比较与发布</button>
+</nav>
+
+<main>
+<!-- ============================ 总览 ============================ -->
+<section class="tab active" id="tab-overview">
+  <div class="grid cols4" id="metrics"></div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>历史回填（带进度检查点，可中断续跑）</h3>
+    <div class="progress"><div id="bar" style="width:0%"></div></div>
+    <p class="hint" id="cpText"></p>
+    <div class="row-actions">
+      <button class="btn" id="bfStart">启动回填</button>
+      <button class="btn ghost" id="bfSlow">慢速回填（演示并发交错，0.4s/行）</button>
+      <button class="btn ghost" id="bfPause">暂停</button>
+      <button class="btn ghost" id="bfResume">继续</button>
+      <button class="btn danger" id="bfStop">中断（保留检查点）</button>
+      <button class="btn ghost" id="bfReset">重置检查点</button>
+    </div>
+    <p class="hint">回填规则：新投影版本 ≥ 快照版本即跳过——在线修改过的记录不会被旧回填覆盖。
+      进程被 kill 后重新启动服务，点击“启动回填”即从 last_id 检查点续跑。</p>
+  </div>
+
+  <div class="grid cols2" style="margin-top:14px">
+    <div class="card">
+      <h3>演示数据（迁移前的旧库，只含单一地址字段）</h3>
+      <div class="row-actions">
+        <button class="btn" id="btnSeed">写入 15 条历史样例</button>
+        <button class="btn danger" id="btnReset">重置整个数据库</button>
+      </div>
+      <p class="hint">样例包含完整地址、缺省市区、自由文本、仅有邮编等不完整格式。</p>
+    </div>
+    <div class="card">
+      <h3>事件时间线</h3>
+      <div class="log" id="logBox"><div class="muted">暂无事件</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 写入 ============================ -->
+<section class="tab" id="tab-write">
+  <div class="grid cols2">
+    <div class="card">
+      <h3>在线写入（同一事务写两套投影，地址只解析一次）</h3>
+      <label>客户名称</label><input id="wName" value="在线新客户">
+      <label>地址原文（试试完整 / 不完整两种格式）</label>
+      <textarea id="wAddr" rows="2">江苏省苏州市工业园区星湖街328号B栋508室 215123</textarea>
+      <div class="row-actions" style="margin-top:10px">
+        <button class="btn" id="btnWrite">双写新增</button>
+        <button class="btn ghost" id="btnWriteBad">写入无法拆分样例（自由文本）</button>
+      </div>
+      <pre class="box" id="writeResult" hidden></pre>
+    </div>
+
+    <div class="card">
+      <h3>并发修订演示（同一记录、同一基线版本的两笔修订）</h3>
+      <p class="hint">两个线程同时提交修订 A / B，都基于同一 expected_version。
+        先提交者升版本成功，后提交者收到 409 冲突，必须重新读取再改——
+        新投影随获胜事务一起更新，绝不出现两投影分叉。</p>
+      <label>记录 ID</label><input id="cId" value="1">
+      <label>基线版本 expected_version（去“双投影数据”页查看当前版本）</label>
+      <input id="cBase" value="1">
+      <label>修订 A 地址</label><input id="cAddrA" value="北京市海淀区中关村大街27号 100080">
+      <label>修订 B 地址</label><input id="cAddrB" value="天津市和平区南京路189号 300041">
+      <button class="btn" id="btnConcurrent" style="margin-top:10px">模拟并发修订</button>
+      <pre class="box" id="concurrentResult" hidden></pre>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>回填撞在线修改（业务版本仲裁）</h3>
+    <p class="hint">模拟回填方拿着过期快照版本提交：当前版本已更新时，回填被拒绝并返回 409；
+      也可在“慢速回填”运行期间直接在线修订某条尚未回填的记录，观察时间线中的 backfill_skip。</p>
+    <div class="row-actions">
+      <div style="flex:1"><label>记录 ID</label><input id="kId" value="1"></div>
+      <div style="flex:1"><label>回填方持有的过期版本</label><input id="kVer" value="1"></div>
+      <button class="btn danger" id="btnBackfillConflict">提交过期回填</button>
+    </div>
+    <pre class="box" id="conflictResult" hidden></pre>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>双写流水 write_journal（证明同一次写入同源同序）</h3>
+    <div id="journalBox"></div>
+  </div>
+</section>
+
+<!-- ============================ 数据 ============================ -->
+<section class="tab" id="tab-data">
+  <div class="card">
+    <h3>两套投影对照（左：v1 旧字段；右：v2 结构化字段与解析状态）</h3>
+    <div style="overflow:auto;max-height:62vh">
+      <table id="custTable"><thead><tr>
+        <th>ID</th><th>客户</th><th>v1 地址原文（永久保留）</th><th>版本</th>
+        <th>v2 结构化字段</th><th>状态 / 投影版本</th><th>操作</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 待处理 ============================ -->
+<section class="tab" id="tab-pending">
+  <div class="card">
+    <h3>未能可靠拆分的地址（保留原文与状态，不编造字段）</h3>
+    <p class="hint">解析器识别不了的地址保持 pending/partial。人工确认时只填写操作员显式给出的字段，
+      留空项不会被自动补全，确认后状态标记为 manual。</p>
+    <div id="pendingBox"></div>
+  </div>
+</section>
+
+<!-- ============================ 发布 ============================ -->
+<section class="tab" id="tab-cutover">
+  <div class="card">
+    <h3>单记录两版输出比较</h3>
+    <div class="row-actions">
+      <div style="width:120px"><label>记录 ID</label><input id="cmpId" value="1"></div>
+      <button class="btn" id="btnCompare" style="margin-top:22px">比较两版输出</button>
+    </div>
+    <div id="compareBox" class="hint" style="margin-top:10px">选择记录后点击比较。</div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>发布前核对（主键 / 引用 / 覆盖率 / 版本一致 / 确定性 / 关键查询）</h3>
+    <div class="row-actions">
+      <button class="btn" id="btnPreflight">运行核对</button>
+      <span id="pfGate" class="hint"></span>
+    </div>
+    <div id="preflightBox" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>切换 / 撤回（旧版与新版消费者全程可查询）</h3>
+    <p class="hint">legacy = 全部消费者读旧投影；dual = 两版并行读取做验证；
+      structured = 切到新投影（存在 fail 项时被禁止）。任何阶段都可一键撤回 legacy。</p>
+    <div class="row-actions">
+      <button class="btn ghost mode-btn" data-mode="legacy">撤回：仅旧投影</button>
+      <button class="btn ghost mode-btn" data-mode="dual">双读并行</button>
+      <button class="btn ok mode-btn" data-mode="structured">切换：仅结构化</button>
+    </div>
+  </div>
+</section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = async (path, opts={}) => {
+  const r = await fetch(path, {headers:{'Content-Type':'application/json'}, ...opts});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(data.error || ('HTTP '+r.status)), {data});
+  return data;
+};
+const post = (p, body={}) => api(p, {method:'POST', body:JSON.stringify(body)});
+const esc = s => (s??'').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const statusChip = s => s ? `<span class="chip ${s}">${s}</span>` : '<span class="chip pending">未回填</span>';
+function toast(msg, ok=true){
+  const el=document.createElement('div'); el.className='t '+(ok?'ok':'err'); el.textContent=msg;
+  $('#toast').appendChild(el); setTimeout(()=>el.remove(), 5000);
+}
+const STRUCT_KEYS = ['country','province','city','district','street','house_no','postal_code','detail'];
+const STRUCT_LABEL = {country:'国家',province:'省',city:'市',district:'区县',street:'街道',house_no:'门牌号',postal_code:'邮编',detail:'补充'};
+
+// ---------- tab 切换
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('active', x===b));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id==='tab-'+b.dataset.tab));
+  refreshAll();
+});
+
+// ---------- 总览
+async function refreshState(){
+  const s = await api('/api/state');
+  $('#modeBadge').textContent = s.read_mode;
+  const st = s.stats, bs = s.checkpoint;
+  const cnt = st.by_status || {};
+  $('#metrics').innerHTML = [
+    ['旧表记录', st.total, 'customers'],
+    ['新投影覆盖', st.structured_covered, '缺失 '+st.missing_projection],
+    ['落后版本投影', st.stale_projection, '应为 0'],
+    ['解析状态', `${cnt.parsed||0} / ${cnt.partial||0} / ${cnt.pending||0}`, 'parsed/partial/pending'],
+  ].map(([a,b,c]) => `<div class="card"><h3>${a}</h3><div class="metric">${b}</div><small class="muted">${c}</small></div>`).join('');
+  const pct = st.total ? Math.min(100, Math.round(bs.processed/st.total*100)) : 0;
+  $('#bar').style.width = pct+'%';
+  $('#cpText').innerHTML =
+    `状态 <b>${esc(bs.status)}</b> · 检查点 last_id=<b>${bs.last_id}</b> · 已处理 ${bs.processed}/${st.total}（${pct}%）`
+    + ` · parsed ${bs.parsed_cnt} / partial ${bs.partial_cnt} / pending ${bs.pending_cnt}`
+    + ` · 跳过更新版本 <b>${bs.skipped_newer}</b>`;
+  const running = s.backfill_running;
+  $('#bfStart').disabled = running; $('#bfSlow').disabled = running;
+  $('#bfPause').disabled = !running; $('#bfResume').disabled = !running;
+  $('#bfStop').disabled = !running;
+}
+
+async function refreshLogs(){
+  const {logs, journal} = await api('/api/logs');
+  $('#logBox').innerHTML = logs.length
+    ? logs.map(l => `<div class="row"><span class="ts">${esc((l.ts||'').slice(11,19))}</span>`
+        + `<span class="chip">${esc(l.event)}</span> ${esc(l.detail||'')}`
+        + (l.customer_id?` <span class="muted">#${l.customer_id}</span>`:'') + `</div>`).join('')
+    : '<div class="muted">暂无事件</div>';
+  $('#journalBox').innerHTML = journal.length ? `<table><thead><tr><th>序号</th><th>时间</th><th>记录</th><th>版本</th><th>来源</th><th>原文 MD5</th></tr></thead><tbody>`
+    + journal.map(j => `<tr><td>${j.id}</td><td class="mono">${esc((j.ts||'').slice(11,19))}</td><td>#${j.customer_id}</td><td>v${j.version}</td><td><span class="chip">${esc(j.actor)}</span></td><td class="mono">${esc(j.raw_md5.slice(0,10))}…</td></tr>`).join('')
+    + '</tbody></table>' : '<div class="muted">暂无写入</div>';
+}
+
+// ---------- 数据表
+async function refreshCustomers(){
+  const {customers} = await api('/api/customers');
+  $('#custTable').querySelector('tbody').innerHTML = customers.map(c => {
+    const fields = STRUCT_KEYS.filter(k => c[k]).map(k => `${STRUCT_LABEL[k]}=${esc(c[k])}`).join('，') || '<span class="muted">（空）</span>';
+    const stale = c.source_version != null && c.source_version !== c.version;
+    return `<tr>
+      <td>${c.id}</td><td>${esc(c.customer_name)}</td>
+      <td>${esc(c.address_raw)}</td><td>v${c.version}</td>
+      <td>${fields}</td>
+      <td>${statusChip(c.parse_status)}<br><span class="mono muted">投影 v${c.source_version ?? '–'}${stale?' <b class="diff-bad">落后!</b>':''}</span></td>
+      <td><button class="btn ghost" onclick="quickCompare(${c.id})">比较</button>
+          <button class="btn ghost" onclick="fillConcurrent(${c.id},${c.version})">修订</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ---------- 待处理
+async function refreshPending(){
+  const {items} = await api('/api/pending');
+  $('#pendingBox').innerHTML = items.length ? items.map(p => `
+    <div class="card" style="margin-bottom:10px;background:var(--panel2)">
+      <div class="kv">
+        <div class="k">记录</div><div>#${p.id} ${esc(p.customer_name)}（v${p.version}）</div>
+        <div class="k">原文</div><div class="mono">${esc(p.address_raw)}</div>
+        <div class="k">状态/原因</div><div>${statusChip(p.parse_status)} ${esc(p.parse_note||'')}</div>
+      </div>
+      <div class="grid cols4" style="margin-top:8px">
+        ${STRUCT_KEYS.map(k => `<div><label>${STRUCT_LABEL[k]}（可留空）</label><input data-pid="${p.id}" class="mf" data-k="${k}" placeholder="不填即保持空"></div>`).join('')}
+      </div>
+      <button class="btn ok" style="margin-top:10px" onclick="manualSubmit(${p.id}, this)">人工确认（manual）</button>
+    </div>`).join('') : '<div class="hint">没有待处理地址。</div>';
+}
+async function manualSubmit(id, btn){
+  const fields = {};
+  document.querySelectorAll(`input.mf[data-pid="${id}"]`).forEach(i => { if(i.value.trim()) fields[i.dataset.k]=i.value.trim(); });
+  try { await post(`/api/customers/${id}/manual`, {fields}); toast('人工确认已保存，状态=manual'); refreshAll(); }
+  catch(e){ toast(e.message, false); }
+}
+
+// ---------- 比较
+async function doCompare(id){
+  const r = await api('/api/compare?id='+id);
+  const v2 = r.v2_output, f = r.fresh_parse;
+  const det = r.determinism_ok === null ? '<span class="chip manual">人工行豁免</span>'
+      : (r.determinism_ok ? '<span class="diff-ok">✓ 与规则重算完全一致</span>' : '<span class="diff-bad">✗ 与规则重算不一致</span>');
+  $('#compareBox').className = '';
+  $('#compareBox').innerHTML = `
+    <div class="grid cols2">
+      <div class="card" style="background:var(--panel2)"><h3>v1 输出（旧消费者）</h3>
+        <pre class="box">${esc(r.v1_output.address_raw)}</pre>
+        <span class="muted">业务版本 v${r.v1_output.version}</span></div>
+      <div class="card" style="background:var(--panel2)"><h3>v2 输出（新消费者）</h3>
+        <div class="kv">${STRUCT_KEYS.map(k=>`<div class="k">${STRUCT_LABEL[k]}</div><div class="mono">${esc(v2.structured[k]||'∅')}</div>`).join('')}</div>
+        <p class="hint">${statusChip(v2.parse_status)} ${esc(v2.parse_note||'')} · 投影版本 v${v2.source_version ?? '–'}</p>
+        <p class="hint">结构化拼回（仅展示）：<br><span class="mono">${esc(v2.reconstructed)}</span></p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:10px;background:var(--panel2)">
+      <h3>确定性核对</h3>${det}
+      <p class="hint ${r.source_version_current?'diff-ok':'diff-bad'}">
+        投影版本 ${r.source_version_current?'等于':'落后于'} 当前业务版本</p>
+      <details><summary class="muted">查看规则现算结果</summary><pre class="box">${esc(JSON.stringify(f,null,2))}</pre></details>
+    </div>`;
+}
+function quickCompare(id){ document.querySelector('nav button[data-tab="cutover"]').click(); $('#cmpId').value=id; doCompare(id); }
+function fillConcurrent(id, ver){
+  document.querySelector('nav button[data-tab="write"]').click();
+  $('#cId').value=id; $('#cBase').value=ver;
+}
+
+// ---------- 发布前核对
+async function runPreflight(){
+  const r = await api('/api/preflight');
+  $('#pfGate').innerHTML = r.ready_to_cutover
+    ? '<span class="check-pass">✓ 无 fail 项，允许切换 structured</span>'
+    : `<span class="check-fail">✗ ${r.hard_fail_count} 个 fail 项，切换将被拒绝</span>`;
+  $('#preflightBox').innerHTML = `<table><thead><tr><th>检查项</th><th>结果</th><th>详情</th></tr></thead><tbody>`
+    + r.checks.map(c => `<tr><td>${esc(c.name)}</td><td class="check-${c.status}">${c.status.toUpperCase()}</td><td>${esc(c.detail)}</td></tr>`).join('')
+    + '</tbody></table>';
+}
+
+// ---------- 事件绑定
+$('#btnSeed').onclick = async () => { try{ const r=await post('/api/seed'); toast('已写入 '+r.seeded+' 条历史样例（仅旧投影）'); refreshAll(); }catch(e){toast(e.message,false);} };
+$('#btnReset').onclick = async () => { if(!confirm('确定清空整个数据库？')) return;
+  try{ await post('/api/reset'); toast('数据库已重置'); refreshAll(); }catch(e){toast(e.message,false);} };
+$('#bfStart').onclick = () => post('/api/backfill/start',{delay:0}).then(()=>toast('回填已启动')).catch(e=>toast(e.message,false));
+$('#bfSlow').onclick = () => post('/api/backfill/start',{delay:0.4}).then(()=>toast('慢速回填已启动')).catch(e=>toast(e.message,false));
+$('#bfPause').onclick = () => post('/api/backfill/pause').then(()=>toast('将在当前行完成后暂停')).catch(e=>toast(e.message,false));
+$('#bfResume').onclick = () => post('/api/backfill/resume').then(()=>toast('已继续')).catch(e=>toast(e.message,false));
+$('#bfStop').onclick = () => post('/api/backfill/stop').then(()=>toast('已中断，检查点保留')).catch(e=>toast(e.message,false));
+$('#bfReset').onclick = () => post('/api/backfill/reset-checkpoint').then(()=>toast('检查点已重置')).then(refreshAll).catch(e=>toast(e.message,false));
+
+$('#btnWrite').onclick = async () => {
+  try{ const r = await post('/api/customers',{customer_name:$('#wName').value, address_raw:$('#wAddr').value});
+    $('#writeResult').hidden=false; $('#writeResult').textContent=JSON.stringify(r,null,2); toast('双写成功 id='+r.id+' v'+r.version); refreshAll();
+  }catch(e){ toast(e.message,false); }
+};
+$('#btnWriteBad').onclick = () => { $('#wAddr').value='就在河边那栋灰房子，到了打电话'; $('#btnWrite').click(); };
+
+$('#btnConcurrent').onclick = async () => {
+  try{ const r = await post('/api/demo/concurrent',{
+      customer_id:+$('#cId').value, base_version:+$('#cBase').value,
+      first_addr:$('#cAddrA').value, second_addr:$('#cAddrB').value});
+    $('#concurrentResult').hidden=false; $('#concurrentResult').textContent=JSON.stringify(r,null,2);
+    toast('并发修订完成，见详情'); refreshAll();
+  }catch(e){ toast(e.message,false); }
+};
+$('#btnBackfillConflict').onclick = async () => {
+  try{ const r = await post('/api/demo/backfill-conflict',{customer_id:+$('#kId').value, stale_version:+$('#kVer').value});
+    $('#conflictResult').hidden=false; $('#conflictResult').textContent='已接受（快照仍新鲜）:\n'+JSON.stringify(r,null,2);
+    toast('回填被接受（快照未过期）'); refreshAll();
+  }catch(e){ $('#conflictResult').hidden=false;
+    $('#conflictResult').textContent='HTTP 409 拒绝：'+e.message+'\n\n'+(e.data?JSON.stringify(e.data,null,2):'');
+    toast('过期回填被正确拒绝', true); refreshAll(); }
+};
+$('#btnCompare').onclick = () => doCompare(+$('#cmpId').value).catch(e=>toast(e.message,false));
+$('#btnPreflight').onclick = () => runPreflight().catch(e=>toast(e.message,false));
+document.querySelectorAll('.mode-btn').forEach(b => b.onclick = async () => {
+  try{ const r = await post('/api/cutover',{mode:b.dataset.mode}); toast('读取开关 → '+r.read_mode); refreshState(); }
+  catch(e){ toast(e.message,false); if(e.data?.preflight) { await runPreflight(); } }
+});
+
+async function refreshAll(){
+  try{
+    await refreshState();
+    const tab = document.querySelector('.tab.active').id;
+    if(tab==='tab-data') await refreshCustomers();
+    if(tab==='tab-pending') await refreshPending();
+    await refreshLogs();
+  }catch(e){ console.error(e); }
+}
+refreshAll();
+setInterval(refreshAll, 1500);
+</script>
+</body>
+</html>
